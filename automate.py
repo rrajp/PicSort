@@ -43,6 +43,7 @@ def save_image_with_offset(sdir, ddir, top, bottom, left, right, offset_factor, 
     # person_name = gui("What is the name of this person? ", sdir + "tmp.jpg")
     person_name = gui("What is the name of this person? ", sdir + "tmp.jpg", False)
     if person_name.lower() == 'x':
+        data_db[file_path].append("Unknown")
         os.remove(sdir + "tmp.jpg")
         return
     data_db[file_path].append(person_name)
@@ -64,17 +65,34 @@ def save_image(sdir, ddir, top, bottom, left, right, offset_factor, file_path):
 if len(os.listdir('known_img')) > 0:
     for file in os.listdir('known_img'):
         if file != 'tmp.jpg':
-            known_db[file.split('.')[0]] = \
-                face_recognition.face_encodings(face_recognition.load_image_file(os.path.join('known_img', file)))[0]
+            print(file)
+            try:
+                known_db[file.split('.')[0]] = \
+                    face_recognition.face_encodings(face_recognition.load_image_file(os.path.join('known_img', file)))[
+                        0]
+            except:
+                continue
 
 for root, dirnames, filenames in os.walk('img'):
     for file in filenames:
         file_path = os.path.join(root, file)
+        print(file_path)
+        if file_path in data_db:
+            print('this file exists in db')
+            continue
+        if file.split('.')[-1] not in ['jpg', 'jpeg', 'png']:
+            continue
         data_db[file_path] = list()
 
         image = cv2.imread(os.path.join(root, file))
         print(image.shape, image.size)
-        resize_factor = 0.25 if image.size > 31457280 else 1  # 30 mb
+        if image.size > 10978112 and image.size < 31457280:
+            resize_factor = 0.5
+        elif image.size > 31457280:
+            resize_factor = 0.25
+        else:
+            resize_factor = 1
+        # resize_factor = 0.25 if image.size > 31457280 else 1  # 30 mb
         small_image = cv2.resize(image, (0, 0), fx = resize_factor, fy = resize_factor)
         face_locations = face_recognition.face_locations(small_image)
         face_encodings = face_recognition.face_encodings(small_image)
@@ -100,8 +118,14 @@ for root, dirnames, filenames in os.walk('img'):
 
             if matches[best_match_index]:
                 name = list(known_db.keys())[best_match_index].split('-')[0]
-                crop_img = image[int(top) - v_offset:int(bottom) + v_offset, int(left) - h_offset:int(right) + h_offset]
-                cv2.imwrite("tmp.jpg", crop_img)
+                try:
+                    crop_img = image[int(top) - v_offset:int(bottom) + v_offset,
+                               int(left) - h_offset:int(right) + h_offset]
+                    cv2.imwrite("tmp.jpg", crop_img)
+                except:
+                    crop_img = image[int(top):int(bottom),
+                               int(left):int(right)]
+                    cv2.imwrite("tmp.jpg", crop_img)
                 # response = gui("Is this person %s" % name.capitalize(), "tmp.jpg")
                 response = gui("Is this person %s" % name.capitalize(), "./tmp.jpg", True)
                 if int(response) == 0:
