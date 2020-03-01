@@ -9,17 +9,31 @@ import numpy as np
 from helper_function.gui import gui
 
 known_db = dict()
+
+# Configurable Variables
 offset_factor = 0.1
+unknown_images_dir = './img/'
+known_faces_dir = "./known_img/"
+database_dir = "./db/"
+database_file = "./db/data.json"
+Training_Mode = FALSE
 
-if not os.path.exists("./known_img"):
-    os.mkdir("./known_img")
-if not os.path.exists("./db"):
-    os.mkdir("./db")
-if not os.path.exists("./img"):
-    os.mkdir("./img")
+if Training_Mode:
+    print("::: Important Note ::: \n Running the programme in Training Mode!!!")
+else:
+    print("::: Important Note ::: \n Running the programme in Auto Detection Mode!!!")
 
-if os.path.exists("./db/data.json"):
-    fp = open('/home/ravirajprajapat/Documents/Learning/facerecognition/db/data.json').read()
+# checks existence of required folders and creates if not available
+if not os.path.exists(known_faces_dir):
+    os.mkdir(known_faces_dir)
+if not os.path.exists(database_dir):
+    os.mkdir(database_dir)
+if not os.path.exists(unknown_images_dir):
+    os.mkdir(unknown_images_dir)
+
+# Checks db files and reads existing one.
+if os.path.exists(database_file):
+    fp = open(database_file).read()
     try:
         data_db = json.loads(fp)
     except:
@@ -28,12 +42,14 @@ else:
     data_db = dict()
 
 
+# Function to check if person name exists in known database
 def search_name(klist, name):
     r = re.compile("%s.*" % name.lower())
     newlist = list(filter(r.match, klist))  # Read Note
     return len(newlist)
 
 
+# Save the image of known in database with provided offset
 def save_image_with_offset(sdir, ddir, top, bottom, left, right, offset_factor, file_path):
     v_offset = int((bottom - top) * offset_factor)
     h_offset = int((right - left) * offset_factor)
@@ -47,14 +63,16 @@ def save_image_with_offset(sdir, ddir, top, bottom, left, right, offset_factor, 
         os.remove(sdir + "tmp.jpg")
         return
     data_db[file_path].append(person_name)
+    print("{} : Adding {} to this Pic".format(file_path, person_name))
     number = search_name(list(known_db.keys()), person_name)
-    print(person_name, number)
     filename = "{}-{}.jpg".format(person_name.lower(), str(number + 1))
     os.rename(sdir + "tmp.jpg", ddir + filename)
+    print("{} : Saved {}'s image as {} in known faces".format(file_path, person_name, filename))
     known_db[filename.split('.')[0]] = \
         face_recognition.face_encodings(face_recognition.load_image_file(ddir + filename))[0]
 
 
+# Save image with and without offset with try catch :
 def save_image(sdir, ddir, top, bottom, left, right, offset_factor, file_path):
     try:
         save_image_with_offset(sdir, ddir, top, bottom, left, right, offset_factor, file_path)
@@ -62,25 +80,29 @@ def save_image(sdir, ddir, top, bottom, left, right, offset_factor, file_path):
         save_image_with_offset(sdir, ddir, top, bottom, left, right, 1, file_path)
 
 
-if len(os.listdir('known_img')) > 0:
-    for file in os.listdir('known_img'):
+# Loading the known persons encoding on script start
+if len(os.listdir(known_faces_dir)) > 0:
+    for file in os.listdir(known_faces_dir):
         if file != 'tmp.jpg':
-            print(file)
+            print("Loading encodings of -", file)
             try:
                 known_db[file.split('.')[0]] = \
-                    face_recognition.face_encodings(face_recognition.load_image_file(os.path.join('known_img', file)))[
-                        0]
+                    face_recognition.face_encodings(
+                        face_recognition.load_image_file(os.path.join(known_faces_dir, file)))[0]
             except:
+                print("Couldn't Load encodings of - ", file)
                 continue
 
-for root, dirnames, filenames in os.walk('img'):
+# Main function starts here, walking through all the files in img directory
+for root, dirnames, filenames in os.walk(unknown_images_dir):
     for file in filenames:
         file_path = os.path.join(root, file)
-        print(file_path)
+        print("Finding Faces in ", file_path)
         if file_path in data_db:
-            print('this file exists in db')
+            print("Already processed {} earlier, hence skipiing for known, check data.json".format(file_path))
             continue
         if file.split('.')[-1] not in ['jpg', 'jpeg', 'png']:
+            print("Not processing {} file format".format(file))
             continue
         data_db[file_path] = list()
 
@@ -98,7 +120,7 @@ for root, dirnames, filenames in os.walk('img'):
         face_encodings = face_recognition.face_encodings(small_image)
         count = 0
 
-        print(len(face_locations))
+        print("Found total {} faces in : {}".format(len(face_locations), file))
         for i, (top, right, bottom, left) in enumerate(face_locations):
             matches = face_recognition.compare_faces(list(known_db.values()), face_encodings[i])
             name = "Unknown"
@@ -127,15 +149,24 @@ for root, dirnames, filenames in os.walk('img'):
                                int(left):int(right)]
                     cv2.imwrite("tmp.jpg", crop_img)
                 # response = gui("Is this person %s" % name.capitalize(), "tmp.jpg")
-                response = gui("Is this person %s" % name.capitalize(), "./tmp.jpg", True)
-                if int(response) == 0:
-                    save_image("", "known_img/", top, bottom, left, right, offset_factor, file_path)
+                if Training_Mode:
+                    response = gui("Is this person : %s" % name.capitalize(), "./tmp.jpg", True)
+                    if int(response) == 0:
+                        save_image("", known_faces_dir, top, bottom, left, right, offset_factor, file_path)
+                    else:
+                        data_db[file_path].append(name)
                 else:
+                    print("Found {} in : {}".format(name, file_path))
                     data_db[file_path].append(name)
             else:
-                save_image("known_img/", "known_img/", top, bottom, left, right, offset_factor, file_path)
+                if Training_Mode:
+                    save_image(known_faces_dir, known_faces_dir, top, bottom, left, right, offset_factor, file_path)
+                else:
+                    print("Found Unknown in : {}".format(file_path))
+                    data_db[file_path].append("Unknown")
         count += 1
 
-with open('/home/ravirajprajapat/Documents/Learning/facerecognition/db/data.json', 'w') as fp:
+# Save found Photo-people data to directory
+with open(database_file, 'w') as fp:
     json.dump(data_db, fp)
     fp.close()

@@ -48,7 +48,6 @@ def gui(question, dir, know):
             response = 'x'
         else:
             response = inputbox.get()
-        print(response, i)
         root.destroy()
 
     known = know
@@ -65,7 +64,6 @@ def gui(question, dir, know):
 
         inputbox = tkinter.Entry(root)
         inputbox.grid(row = 2, column = 0)
-        #     print(inputbox.get())
         button2 = tkinter.Button(root, text = 'Okay', width = 25, command = lambda: resp(2)).grid(row = 2, column = 1)
         button3 = tkinter.Button(root, text = 'Unknown/Others', width = 25, command = lambda: resp(3))
         button3.grid(row = 3, columnspan = 2)
