@@ -13,10 +13,11 @@ known_db = dict()
 # Configurable Variables
 offset_factor = 0.1
 unknown_images_dir = './img/'
+# unknown_images_dir = '/media/ravirajprajapat/Seagate Backup Plus Drive/Ravi Laptop Data/Entertain/Tasveer/'
 known_faces_dir = "./known_img/"
 database_dir = "./db/"
 database_file = "./db/data.json"
-Training_Mode = FALSE
+Training_Mode = True
 
 if Training_Mode:
     print("::: Important Note ::: \n Running the programme in Training Mode!!!")
@@ -166,7 +167,7 @@ for root, dirnames, filenames in os.walk(unknown_images_dir):
                     data_db[file_path].append("Unknown")
         count += 1
 
-# Save found Photo-people data to directory
-with open(database_file, 'w') as fp:
-    json.dump(data_db, fp)
-    fp.close()
+    # Save found Photo-people data to directory
+    with open(database_file, 'w') as fp:
+        json.dump(data_db, fp)
+        fp.close()
